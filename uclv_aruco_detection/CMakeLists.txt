@@ -24,6 +24,8 @@ include_directories(include ${YAML_CPP_INCLUDE_DIRS} ${tf2_INCLUDE_DIRS})
 # Add the executable
 add_executable(pose_conversion_node src/pose_conversion.cpp)
 add_executable(aruco_marker_array_pub_test_node src/aruco_marker_array_pub_test.cpp)
+add_executable(multiple_poses_elaboration_node src/multiple_poses_elaboration.cpp)
+
 
 
 # Link libraries
@@ -32,12 +34,16 @@ target_link_libraries(pose_conversion_node yaml-cpp)
 
 ament_target_dependencies(aruco_marker_array_pub_test_node rclcpp aruco_msgs geometry_msgs)
 
+ament_target_dependencies(multiple_poses_elaboration_node rclcpp aruco_msgs geometry_msgs tf2 yaml-cpp tf2_geometry_msgs)
+target_link_libraries(multiple_poses_elaboration_node yaml-cpp)
+
 
 
 # Install targets
 install(TARGETS
   pose_conversion_node
   aruco_marker_array_pub_test_node
+  multiple_poses_elaboration_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
