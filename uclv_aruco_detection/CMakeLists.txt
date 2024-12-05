@@ -16,6 +16,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(uclv_aruco_detection_interfaces REQUIRED)
 
 # Include directories
 include_directories(include ${YAML_CPP_INCLUDE_DIRS} ${tf2_INCLUDE_DIRS})
@@ -25,6 +26,7 @@ include_directories(include ${YAML_CPP_INCLUDE_DIRS} ${tf2_INCLUDE_DIRS})
 add_executable(pose_conversion_node src/pose_conversion.cpp)
 add_executable(aruco_marker_array_pub_test_node src/aruco_marker_array_pub_test.cpp)
 add_executable(multiple_poses_elaboration_node src/multiple_poses_elaboration.cpp)
+add_executable(pose_conversion_server_node src/pose_conversion_server.cpp)
 
 
 
@@ -37,6 +39,8 @@ ament_target_dependencies(aruco_marker_array_pub_test_node rclcpp aruco_msgs geo
 ament_target_dependencies(multiple_poses_elaboration_node rclcpp aruco_msgs geometry_msgs tf2 yaml-cpp tf2_geometry_msgs)
 target_link_libraries(multiple_poses_elaboration_node yaml-cpp)
 
+ament_target_dependencies(pose_conversion_server_node rclcpp aruco_msgs geometry_msgs tf2 yaml-cpp tf2_geometry_msgs uclv_aruco_detection_interfaces)
+target_link_libraries(pose_conversion_server_node yaml-cpp)
 
 
 # Install targets
@@ -44,6 +48,7 @@ install(TARGETS
   pose_conversion_node
   aruco_marker_array_pub_test_node
   multiple_poses_elaboration_node
+  pose_conversion_server_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -66,6 +71,17 @@ if(BUILD_TESTING)
   # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+
+  add_executable(test_server_client test/test_server_client.cpp)
+  ament_target_dependencies(test_server_client rclcpp uclv_aruco_detection_interfaces)
+
+  install(TARGETS
+    test_server_client
+    DESTINATION lib/${PROJECT_NAME}
+  )
+
+
+
 endif()
 
 ament_package()
