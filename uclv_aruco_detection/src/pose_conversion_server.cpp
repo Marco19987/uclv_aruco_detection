@@ -18,6 +18,21 @@ class PoseConversionServer : public rclcpp::Node
 public:
   PoseConversionServer() : Node("pose_conversion_server")
   {
+    // declare parameters
+    this->declare_parameter<std::string>("additional_transformation_topic", "");
+    additional_transformation_topic_ = this->get_parameter("additional_transformation_topic").as_string();
+
+    std::cout << "additional_transformation_topic : " << additional_transformation_topic_ << std::endl;
+
+    if (additional_transformation_topic_ != "")
+    {
+      std::cout << "Subscribing to additional transformation topic  " << additional_transformation_topic_ << std::endl;
+      // subscriber
+      additional_transformation_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+          additional_transformation_topic_,  rclcpp::SensorDataQoS(),
+          std::bind(&PoseConversionServer::additional_transformation_callback, this, std::placeholders::_1));
+    }
+
     // subscriber
     aruco_sub_ = this->create_subscription<aruco_msgs::msg::MarkerArray>(
         "/aruco_marker_poses", 1, std::bind(&PoseConversionServer::aruco_callback, this, std::placeholders::_1));
@@ -31,6 +46,12 @@ public:
   }
 
 private:
+  void additional_transformation_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
+  {
+    // store the additional transformation
+    additional_transformation_ = *msg;
+  }
+
   void reset_server()
   {
     server_initialized_ = false;
@@ -99,7 +120,7 @@ private:
       auto it = std::find(aruco_ids_.begin(), aruco_ids_.end(), marker.id);
       if (it == aruco_ids_.end())
       {
-        //RCLCPP_WARN(this->get_logger(), "ArUco ID %d not found in the config file", marker.id);
+        // RCLCPP_WARN(this->get_logger(), "ArUco ID %d not found in the config file", marker.id);
         continue;
       }
       int idx = std::distance(aruco_ids_.begin(), it);
@@ -113,6 +134,14 @@ private:
       // Apply the fixed transformation
       tf2::Transform referenceframe_T_frame = referenceframe_T_aruco * aruco_T_frame;
 
+      // apply additional transformation if available
+      if (additional_transformation_topic_ != "")
+      {
+        tf2::Transform additional_transformation;
+        tf2::fromMsg(additional_transformation_.pose, additional_transformation);
+        referenceframe_T_frame = additional_transformation * referenceframe_T_frame;
+      }
+
       // Convert back to geometry_msgs::Pose
       geometry_msgs::msg::PoseStamped frame_pose;
       frame_pose.header = marker.header;
@@ -125,6 +154,7 @@ private:
   rclcpp::Service<uclv_aruco_detection_interfaces::srv::PoseService>::SharedPtr server_;
 
   rclcpp::Subscription<aruco_msgs::msg::MarkerArray>::SharedPtr aruco_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr additional_transformation_sub_;
   std::vector<rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr> frame_publishers_;
   std::string obj_name_;
   std::vector<tf2::Transform> fixed_transformations_;  // vector of fixed transformations from aruco_id to frame_id
@@ -132,6 +162,8 @@ private:
   std::vector<int> aruco_ids_;                         // vector of aruco ids
 
   bool server_initialized_ = false;
+  std::string additional_transformation_topic_;  // topic to read additional transformation to apply to the poses
+  geometry_msgs::msg::PoseStamped additional_transformation_;
 };
 
 int main(int argc, char* argv[])
