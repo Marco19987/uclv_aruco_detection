@@ -22,6 +22,9 @@ public:
     this->declare_parameter<std::string>("additional_transformation_topic", "");
     additional_transformation_topic_ = this->get_parameter("additional_transformation_topic").as_string();
 
+    this->declare_parameter<std::string>("frame_id", "");
+    frame_id_ = this->get_parameter("frame_id").as_string();
+
     std::cout << "additional_transformation_topic : " << additional_transformation_topic_ << std::endl;
 
     if (additional_transformation_topic_ != "")
@@ -29,13 +32,9 @@ public:
       std::cout << "Subscribing to additional transformation topic  " << additional_transformation_topic_ << std::endl;
       // subscriber
       additional_transformation_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-          additional_transformation_topic_,  rclcpp::SensorDataQoS(),
+          additional_transformation_topic_, rclcpp::SensorDataQoS(),
           std::bind(&PoseConversionServer::additional_transformation_callback, this, std::placeholders::_1));
     }
-
-    // subscriber
-    aruco_sub_ = this->create_subscription<aruco_msgs::msg::MarkerArray>(
-        "/aruco_marker_poses", 1, std::bind(&PoseConversionServer::aruco_callback, this, std::placeholders::_1));
 
     // Create the service server
     server_ = this->create_service<uclv_aruco_detection_interfaces::srv::PoseService>(
@@ -59,6 +58,7 @@ private:
     fixed_transformations_.clear();
     frame_names.clear();
     aruco_ids_.clear();
+    aruco_sub_.reset();
   }
   void handle_service_request(const std::shared_ptr<uclv_aruco_detection_interfaces::srv::PoseService::Request> request,
                               std::shared_ptr<uclv_aruco_detection_interfaces::srv::PoseService::Response> response)
@@ -81,6 +81,10 @@ private:
       frame_publishers_.push_back(
           this->create_publisher<geometry_msgs::msg::PoseStamped>(this->obj_name_ + "/" + frame_name + "/pose", 1));
     }
+
+    // subscriber
+    aruco_sub_ = this->create_subscription<aruco_msgs::msg::MarkerArray>(
+        "/aruco_marker_poses", 1, std::bind(&PoseConversionServer::aruco_callback, this, std::placeholders::_1));
 
     // return the response
     server_initialized_ = true;
@@ -134,17 +138,24 @@ private:
       // Apply the fixed transformation
       tf2::Transform referenceframe_T_frame = referenceframe_T_aruco * aruco_T_frame;
 
+      // Convert back to geometry_msgs::Pose
+      geometry_msgs::msg::PoseStamped frame_pose;
+      frame_pose.header = marker.header;
+
       // apply additional transformation if available
       if (additional_transformation_topic_ != "")
       {
         tf2::Transform additional_transformation;
         tf2::fromMsg(additional_transformation_.pose, additional_transformation);
         referenceframe_T_frame = additional_transformation * referenceframe_T_frame;
+        frame_pose.header.frame_id = additional_transformation_.header.frame_id;
       }
 
-      // Convert back to geometry_msgs::Pose
-      geometry_msgs::msg::PoseStamped frame_pose;
-      frame_pose.header = marker.header;
+      if(frame_id_ != "")
+      {
+        frame_pose.header.frame_id = frame_id_;
+      }
+
       tf2::toMsg(referenceframe_T_frame, frame_pose.pose);
 
       frame_publishers_[idx]->publish(frame_pose);
@@ -164,6 +175,8 @@ private:
   bool server_initialized_ = false;
   std::string additional_transformation_topic_;  // topic to read additional transformation to apply to the poses
   geometry_msgs::msg::PoseStamped additional_transformation_;
+
+  std::string frame_id_;
 };
 
 int main(int argc, char* argv[])
