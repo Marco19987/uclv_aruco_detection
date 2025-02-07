@@ -11,6 +11,7 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(aruco_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
@@ -28,7 +29,14 @@ add_executable(aruco_marker_array_pub_test_node src/aruco_marker_array_pub_test.
 add_executable(multiple_poses_elaboration_node src/multiple_poses_elaboration.cpp)
 add_executable(pose_conversion_server_node src/pose_conversion_server.cpp)
 
-
+add_library(pose_conversion_server_component SHARED src/pose_conversion_server_composable.cpp)
+ament_target_dependencies(pose_conversion_server_component rclcpp aruco_msgs geometry_msgs tf2 yaml-cpp tf2_geometry_msgs uclv_aruco_detection_interfaces rclcpp_components)
+target_link_libraries(pose_conversion_server_component yaml-cpp)
+rclcpp_components_register_node(
+  pose_conversion_server_component
+    PLUGIN "uclv_aruco_detection::PoseConversionServer"
+    EXECUTABLE composable_pose_conversion_server
+)
 
 # Link libraries
 ament_target_dependencies(pose_conversion_node rclcpp aruco_msgs geometry_msgs tf2 yaml-cpp tf2_geometry_msgs)
@@ -50,6 +58,15 @@ install(TARGETS
   multiple_poses_elaboration_node
   pose_conversion_server_node
   DESTINATION lib/${PROJECT_NAME}
+)
+
+ament_export_targets(export_pose_conversion_server_component)
+install(TARGETS
+  pose_conversion_server_component
+  EXPORT export_pose_conversion_server_component
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
 )
 
 # Install launch files (if any)

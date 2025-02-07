@@ -17,6 +17,7 @@
   <depend>yaml-cpp</depend>
   <depend>tf2</depend>
   <depend>tf2_geometry_msgs</depend>
+  <depend>rclcpp_components</depend>
 
 
   <export>
