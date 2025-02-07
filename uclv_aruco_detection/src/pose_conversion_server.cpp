@@ -75,16 +75,19 @@ private:
     this->obj_name_ = request->object_name.data.c_str();
     load_fixed_transformations(request->yaml_file_path.data.c_str());
 
+    auto qos = rclcpp::SensorDataQoS();
+    qos.keep_last(1);
+
     // instantiate the pusblishers for each frame
     for (auto frame_name : frame_names)
     {
       frame_publishers_.push_back(
-          this->create_publisher<geometry_msgs::msg::PoseStamped>(this->obj_name_ + "/" + frame_name + "/pose", 1));
+          this->create_publisher<geometry_msgs::msg::PoseStamped>(this->obj_name_ + "/" + frame_name + "/pose", rclcpp::SensorDataQoS()));
     }
 
     // subscriber
     aruco_sub_ = this->create_subscription<aruco_msgs::msg::MarkerArray>(
-        "/aruco_marker_poses", 1, std::bind(&PoseConversionServer::aruco_callback, this, std::placeholders::_1));
+        "/aruco_marker_poses", qos, std::bind(&PoseConversionServer::aruco_callback, this, std::placeholders::_1));
 
     // return the response
     server_initialized_ = true;
@@ -151,7 +154,7 @@ private:
         frame_pose.header.frame_id = additional_transformation_.header.frame_id;
       }
 
-      if(frame_id_ != "")
+      if (frame_id_ != "")
       {
         frame_pose.header.frame_id = frame_id_;
       }
